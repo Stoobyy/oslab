@@ -26,20 +26,13 @@ void cscan(int requests[], int n, int head, int max_cylinder) {
     
     printf("\nSequence of disk movements: %d", head);
     
-    // Find the position where head is
-    int head_index = 0;
+    // Serve requests greater than head
     for (i = 0; i < n; i++) {
         if (requests[i] >= head) {
-            head_index = i;
-            break;
+            total_seek += abs(requests[i] - current_pos);
+            current_pos = requests[i];
+            printf(" -> %d", current_pos);
         }
-    }
-    
-    // Serve requests greater than head
-    for (i = head_index; i < n; i++) {
-        total_seek += abs(requests[i] - current_pos);
-        current_pos = requests[i];
-        printf(" -> %d", current_pos);
     }
     
     // Go to the end of the disk
@@ -54,11 +47,13 @@ void cscan(int requests[], int n, int head, int max_cylinder) {
     current_pos = 0;
     printf(" -> %d", current_pos);
     
-    // Now serve requests from the beginning until head
-    for (i = 0; i < head_index; i++) {
-        total_seek += abs(requests[i] - current_pos);
-        current_pos = requests[i];
-        printf(" -> %d", current_pos);
+    // Now serve requests less than head
+    for (i = 0; i < n; i++) {
+        if (requests[i] < head) {
+            total_seek += abs(requests[i] - current_pos);
+            current_pos = requests[i];
+            printf(" -> %d", current_pos);
+        }
     }
     
     printf("\nTotal seek distance: %d\n", total_seek);
