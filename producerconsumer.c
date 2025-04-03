@@ -41,7 +41,7 @@ void *consumer(void *arg) {
         
         pthread_mutex_unlock(&mutex);
         sem_post(&empty);
-        sleep(1);
+        sleep(2);
     }
     return NULL;
 }
