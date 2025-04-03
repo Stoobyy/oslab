@@ -4,11 +4,21 @@ struct Process {
     int id;
     int arrival;
     int burst;
-    int rem;       // Remaining burst time
     int wait;
     int tat;
     int complete;
+    int remaining;  // Renamed from 'rem' to match attached code
+    int processed;  // Added to match attached code (used as a flag for completion)
 } process[10];
+
+// Structure to track execution sequence for Gantt chart
+struct GanttEntry {
+    int processId;
+    int startTime;
+    int endTime;
+} gantt[100]; // Assuming maximum 100 context switches
+
+int ganttSize = 0; // Number of entries in the Gantt chart
 
 // Function to sort processes by arrival time (bubble sort)
 void sortByArrival(struct Process proc[], int n) {
@@ -24,42 +34,88 @@ void sortByArrival(struct Process proc[], int n) {
     }
 }
 
+// Function to sort Gantt entries by start time
+void sortByCompletion(struct GanttEntry gantt[], int n) {
+    struct GanttEntry temp;
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (gantt[j].startTime > gantt[j + 1].startTime) {
+                temp = gantt[j];
+                gantt[j] = gantt[j + 1];
+                gantt[j + 1] = temp;
+            }
+        }
+    }
+}
+
 // Function to calculate waiting time, turnaround time, and completion time using Round Robin scheduling
 void calculateTimesRR(struct Process proc[], int n, int quantum) {
-    int time = 0;      // Current time
-    int done = 0;      // Number of processes completed
+    int currentTime = 0;  // Renamed from 'time' to match attached code
+    int completed = 0;    // Renamed from 'done' to match attached code
+    ganttSize = 0;        // Reset Gantt chart entries
 
     // Initialize remaining time for each process
     for (int i = 0; i < n; i++) {
-        proc[i].rem = proc[i].burst;
+        proc[i].remaining = proc[i].burst;
+        proc[i].processed = 0;  // Initialize processed flag
     }
 
     // Continue until all processes are completed
-    while (done < n) {
+    while (completed < n) {
         int executed = 0;  // Flag to check if any process was executed in this cycle
 
         for (int i = 0; i < n; i++) {
             // Only process if it has arrived and is not yet completed
-            if (proc[i].arrival <= time && proc[i].rem > 0) {
+            if (proc[i].arrival <= currentTime && proc[i].remaining > 0) {
                 executed = 1;
-                if (proc[i].rem > quantum) {
-                    time += quantum;
-                    proc[i].rem -= quantum;
+                int startTime = currentTime;
+                
+                if (proc[i].remaining > quantum) {
+                    currentTime += quantum;
+                    proc[i].remaining -= quantum;
                 } else {
-                    time += proc[i].rem;
-                    proc[i].rem = 0;
-                    proc[i].complete = time;
+                    currentTime += proc[i].remaining;
+                    proc[i].remaining = 0;
+                    proc[i].complete = currentTime;
                     proc[i].tat = proc[i].complete - proc[i].arrival;
                     proc[i].wait = proc[i].tat - proc[i].burst;
-                    done++;
+                    proc[i].processed = 1;  // Mark as processed
+                    completed++;
                 }
+                
+                // Add entry to Gantt chart
+                gantt[ganttSize].processId = proc[i].id;
+                gantt[ganttSize].startTime = startTime;
+                gantt[ganttSize].endTime = currentTime;
+                ganttSize++;
             }
         }
         // If no process was executed (i.e., no process has arrived), increment time
         if (!executed) {
-            time++;
+            currentTime++;
         }
     }
+    
+    // Merge consecutive entries of the same process
+    for (int i = 0; i < ganttSize - 1; i++) {
+        if (gantt[i].processId == gantt[i + 1].processId) {
+            gantt[i + 1].startTime = gantt[i].startTime;
+            gantt[i].processId = -1; // Mark for removal
+        }
+    }
+    
+    // Compact the array by removing marked entries
+    int newSize = 0;
+    for (int i = 0; i < ganttSize; i++) {
+        if (gantt[i].processId != -1) {
+            gantt[newSize] = gantt[i];
+            newSize++;
+        }
+    }
+    ganttSize = newSize;
+    
+    // Sort the Gantt chart by start time
+    sortByCompletion(gantt, ganttSize);
 }
 
 // Function to display process details and average times
@@ -78,6 +134,25 @@ void display(struct Process proc[], int n) {
     
     printf("\nAverage Waiting Time: %.2f", (float)totalwait / n);
     printf("\nAverage Turnaround Time: %.2f\n", (float)totaltat / n);
+    
+    // Display Gantt chart
+    printf("\nGantt Chart:\n");
+        
+    // Print process boxes
+    printf("|");
+    for (int i = 0; i < ganttSize; i++) {
+        printf(" P%d |", gantt[i].processId);
+    }
+
+    // Print time markers
+    printf("\n");
+    printf("%d", gantt[0].startTime);  // First process start time
+
+    for (int i = 0; i < ganttSize; i++) {
+        
+        printf("     %d", gantt[i].endTime);
+    }
+    printf("\n");
 }
 
 void main() {
@@ -86,11 +161,11 @@ void main() {
     scanf("%d", &n);
     
     for (int i = 0; i < n; i++) {
-        printf("Enter process id: ", i + 1);
-        scanf("%d", &process[i].id);
+        process[i].id = i + 1;
+        printf("Enter arrival time for process %d: ", i + 1);
+        scanf("%d", &process[i].arrival);
         printf("Enter burst time for process %d: ", i + 1);
         scanf("%d", &process[i].burst);
-        process[i].arrival = 0;
     }
     
     printf("Enter time quantum: ");
