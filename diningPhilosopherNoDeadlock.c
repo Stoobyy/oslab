@@ -3,6 +3,7 @@
 #include <semaphore.h>
 #include <unistd.h>
 
+
 #define N 5 // Number of philosophers
 
 sem_t forks[N]; // Semaphores representing forks
